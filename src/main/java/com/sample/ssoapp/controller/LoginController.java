@@ -11,7 +11,7 @@ public class LoginController {
         return "home";
     }
 
-    @RequestMapping("/login")
+    @RequestMapping("/sso-login")
     public String login(){
         return "login";
     }
