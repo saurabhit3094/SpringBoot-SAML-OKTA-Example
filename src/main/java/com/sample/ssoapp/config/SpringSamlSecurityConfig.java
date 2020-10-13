@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -46,8 +47,8 @@ import java.util.*;
 public class SpringSamlSecurityConfig extends WebSecurityConfigurerAdapter {
 
     //IDP ENTITY ID AND APPLICATION BASE URL
-    private static final String APP_ENTITY_ID = "";
-    private static final String APP_BASE_URL = "https://localhost:8080";
+    private static final String APP_ENTITY_ID = "http://www.okta.com/exk15nvjj5sz2AqTr4x7";
+    private static final String APP_BASE_URL = "https://localhost:8443";
 
     @Bean
     public SAMLEntryPoint samlEntryPoint() {
@@ -248,7 +249,10 @@ public class SpringSamlSecurityConfig extends WebSecurityConfigurerAdapter {
     // SAML 2.0 WebSSO Assertion Consumer
     @Bean
     public WebSSOProfileConsumer webSSOprofileConsumer() {
-        return new WebSSOProfileConsumerImpl();
+        WebSSOProfileConsumerImpl webSSOProfileConsumerWithSkew = new WebSSOProfileConsumerImpl();
+        webSSOProfileConsumerWithSkew.setResponseSkew(600);
+        return webSSOProfileConsumerWithSkew;
+
     }
 
     // SAML 2.0 Web SSO profile
@@ -258,8 +262,22 @@ public class SpringSamlSecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
+    public WebSSOProfileConsumerHoKImpl hokWebSSOprofileConsumer() {
+        return new WebSSOProfileConsumerHoKImpl();
+    }
+
+//    @Bean
+//    public WebSSOProfileConsumerHoKImpl hokWebSSOProfile() {
+//        return new WebSSOProfileConsumerHoKImpl();
+//    }
+
+
+    @Bean
     public SingleLogoutProfile logoutprofile() {
-        return new SingleLogoutProfileImpl();
+        SingleLogoutProfileImpl singleLogoutProfileWithSkew = new SingleLogoutProfileImpl();
+        singleLogoutProfileWithSkew.setResponseSkew(600);
+        return singleLogoutProfileWithSkew;
+
     }
 
     //IDP metadata config
@@ -269,7 +287,7 @@ public class SpringSamlSecurityConfig extends WebSecurityConfigurerAdapter {
 
         Timer backgroundTaskTimer = new Timer(true);
 
-        HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, new HttpClient(),"Metadata Url");
+        HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, new HttpClient(),"https://dev-662098.okta.com/app/exk15nvjj5sz2AqTr4x7/sso/saml/metadata");
         httpMetadataProvider.setParserPool(parserPool());
 
         ExtendedMetadataDelegate extendedMetadataDelegate =
@@ -306,6 +324,7 @@ public class SpringSamlSecurityConfig extends WebSecurityConfigurerAdapter {
         // User will try to load saml resource and result in exception . which will be handeled by
         // Spring security ExceptionTranslationFilter which will pass request to saml entry point and saml auth process begins.
         http.exceptionHandling().authenticationEntryPoint(samlEntryPoint());
+
         // Disable CSRF
         http
                 .csrf()
@@ -318,7 +337,9 @@ public class SpringSamlSecurityConfig extends WebSecurityConfigurerAdapter {
         http
                 .authorizeRequests()
                 .antMatchers("/error").permitAll()
+                .antMatchers("/ssoapp/saml/**").permitAll()
                 .antMatchers("/saml/**").permitAll()
+                .antMatchers(HttpMethod.POST,"/saml/SSO/**").permitAll()
                 .anyRequest().authenticated();
     }
 }
